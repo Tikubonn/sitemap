@@ -1,0 +1,4 @@
+.pytest_cache
+sitemap.egg-info
+build
+src/sitemap/static/xsd/*.xsd

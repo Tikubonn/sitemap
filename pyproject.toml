@@ -1,0 +1,50 @@
+
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sitemap"
+version = "1.0.0"
+dependencies = [
+  "xmlschema>=4.2.0",
+  "closeable@git+https://github.com/Tikubonn/closeable.git@v1.0"
+]
+requires-python = ">=3.12"
+authors = [
+  {name = "tikubonn"}
+]
+maintainers = [
+  {name = "tikubonn"}
+]
+description = "Provide some functions for reading and writing the any sitemap."
+readme = "README.md"
+license = "AGPL-3.0"
+license-files = ["LICEN[CS]E"]
+keywords = []
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Development Status :: 5 - Production/Stable"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest"
+]
+
+[project.urls]
+Homepage = "https://github.com/tikubonn/sitemap"
+Documentation = "https://github.com/tikubonn/sitemap/README.md"
+Repository = "https://github.com/tikubonn/sitemap.git"
+
+[tool.setuptools]
+include-package-data = true
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-v"
+testpaths = [
+  "test"
+]
