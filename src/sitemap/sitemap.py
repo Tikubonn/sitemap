@@ -14,6 +14,8 @@ from .abc import ISitemap, ISitemapFile, ILoadable
 
 class ChangeFreq (Enum):
 
+  """サイトマップの <changefreq> で指定可能な値を表す列挙型です。"""
+
   NONE = ""
   HOURLY = "hourly"
   DAILY = "daily"
@@ -25,12 +27,36 @@ class ChangeFreq (Enum):
 
 class URL (NamedTuple):
 
+  """サイトマップの <url> の内容を表現します。
+
+  Attributes
+  ----------
+  loc : str
+    サイトマップの <loc> の値です。
+  last_mod : datetime.datetime
+    サイトマップの <lastmod> の値です。
+  priority : float
+    サイトマップの <priority> の値です。
+    未指定ならば `0.5` が設定されます。
+  change_freq : ChangeFreq
+    サイトマップの <changefreq> の値です。
+    未指定ならば `ChangeFreq.NONE` が設定されます。
+  """
+
   loc:str
   last_mod:datetime.datetime
   priority:float = 0.5
   change_freq:ChangeFreq = ChangeFreq.NONE
 
 class SitemapFile (ISitemapFile):
+
+  """単体のサイトマップファイルを表現するクラスです。
+
+  Warnings
+  --------
+  本クラスは `Sitemap.save_files` メソッドにより生成されることを想定しています。
+  よって手動での生成は推奨されません。
+  """
 
   def __init__ (self, file:Path|str, urls:list[URL]):
     self._file = Path(file)
@@ -68,6 +94,18 @@ class SitemapFile (ISitemapFile):
 
 class Sitemap (ISitemap, ILoadable, ICloseable):
 
+  """サイトマップを表現するクラスです。
+
+  Examples
+  --------
+  >>> import datetime
+  >>>
+  >>> sitemap = Sitemap("./sample.xml")
+  >>> sitemap.register("http://www.example.com/", datetime.datetime(2025, 1, 23))
+  >>> sitemap.save_files()
+  [<sitemap.sitemap.SitemapFile object at 0xXXXXXXXXXXXXXXXX>]
+  """
+
   def _db_prepare (self) -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     connection = sqlite3.connect(":memory:")
     cursor = connection.cursor()
@@ -100,6 +138,27 @@ class Sitemap (ISitemap, ILoadable, ICloseable):
     self._closeable.close()
 
   def register (self, loc:str, last_mod:datetime.datetime, priority:float=0.5, change_freq:ChangeFreq=ChangeFreq.NONE):
+
+    """サイトマップにページの URL を登録します。
+
+    Notes
+    -----
+    登録済みの URL が指定されたとき、本メソッドは重複するレコードを作成するのではなく、既存のレコードを更新する処理を行います。
+
+    Arguments
+    ---------
+    loc : str
+      登録するページの URL です。
+    last_mod : datetime.datetime
+      登録するページの更新日時です。
+    priority : float
+      登録するページの優先度です。
+      未指定ならば `0.5` が設定されます。
+    change_freq : ChangeFreq
+      登録するページの更新頻度です。
+      未指定ならば `ChangeFreq.NONE` が設定されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT id FROM url WHERE loc == ?", (loc,))
     if self._cursor.fetchone():
@@ -108,14 +167,45 @@ class Sitemap (ISitemap, ILoadable, ICloseable):
       self._cursor.execute("INSERT INTO url(loc, last_mod_seconds, priority, change_freq_id) VALUES(?, ?, ?, (SELECT change_freq.id FROM change_freq WHERE change_freq.name = ?))", (loc, last_mod.timestamp(), priority, change_freq.value))
 
   def unregister (self, loc:str):
+
+    """サイトマップに登録されたページ情報を削除します。
+
+    Notes
+    -----
+    削除するページが存在しない場合であっても、このメソッドは必ず成功します。
+
+    Arguments
+    ---------
+    loc : str
+      削除するページの URL です。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("DELETE FROM url WHERE loc == ?", (loc,))
 
   def clear (self):
+
+    """サイトマップに登録された全てのページ情報を削除します。"""
+
     self._closeable.must_be_open()
     self._cursor.execute("DELETE FROM url")
 
   def get (self, loc:str) -> URL|None:
+
+    """サイトマップに登録された任意のページ情報を取得します。
+
+    Arguments
+    ---------
+    loc : str
+      取得するページの URL です。
+
+    Returns
+    -------
+    URL|None
+      ページ情報の取得に成功したならば、その情報が設定された `URL` オブジェクトを返します。
+      逆にページ情報の取得に失敗したならば `None` が返されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT url.loc, url.last_mod_seconds, url.priority, change_freq.name FROM url INNER JOIN change_freq ON change_freq.id = url.change_freq_id WHERE url.loc == ?", (loc,))
     found_column = self._cursor.fetchone()
@@ -128,6 +218,16 @@ class Sitemap (ISitemap, ILoadable, ICloseable):
       return None
 
   def list_all (self) -> list[URL]:
+
+    """サイトマップに登録された全てのページ情報をリストにして返します。
+
+    Returns
+    -------
+    list[URL]
+      画像サイトマップに登録された全てのページ情報のリストです。
+      本リストは整列済みの状態で返されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT url.loc, url.last_mod_seconds, url.priority, change_freq.name FROM url INNER JOIN change_freq ON url.change_freq_id = change_freq.id ORDER BY url.loc ASC")
     result = []

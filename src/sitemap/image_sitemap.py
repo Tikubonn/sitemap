@@ -13,6 +13,26 @@ from .abc import ISitemap, ISitemapFile, ILoadable
 
 class Image (NamedTuple):
 
+  """画像サイトマップの <image:image> の内容を表現します。
+
+  Attributes
+  ----------
+  loc : str
+    画像サイトマップの <image:loc> の値です。
+  caption : str
+    画像サイトマップの <image:caption> の値です。
+    未指定ならば空文字列が設定されます。
+  geo_location : str
+    画像サイトマップの <image:geo_location> の値です。
+    未指定ならば空文字列が設定されます。
+  title : str
+    画像サイトマップの <image:title> の値です。
+    未指定ならば空文字列が設定されます。
+  license : str
+    画像サイトマップの <image:license> の値です。
+    未指定ならば空文字列が設定されます。
+  """
+
   loc:str
   caption:str = ""
   geo_location:str = ""
@@ -21,10 +41,29 @@ class Image (NamedTuple):
 
 class URL (NamedTuple):
 
+  """画像サイトマップの <url> の内容を表現します。
+
+  Attributes
+  ----------
+  loc : str
+    画像サイトマップの <url> 直下にある <loc> の値です。
+  images : list[Image]
+    画像サイトマップの <url> 直下にある <image:image> の集合です。
+    これは <image:image> を表現するクラス `Image` のインスタンスのリストを指定します。
+  """
+
   loc:str
   images:list[Image]
 
 class ImageSitemapFile (ISitemapFile):
+
+  """単体の画像サイトマップのファイルを表現するクラスです。
+
+  Warnings
+  --------
+  本クラスは `ImageSitemap.save_files` メソッドにより生成されることを想定しています。
+  よって手動での生成は推奨されません。
+  """
 
   def __init__ (self, file:Path|str, url_images:OrderedDict[str, list[Image]]):
     self._file = Path(file)
@@ -71,6 +110,16 @@ class ImageSitemapFile (ISitemapFile):
 
 class ImageSitemap (ISitemap, ILoadable, ICloseable):
 
+  """画像サイトマップを表現するクラスです。
+
+  Examples
+  --------
+  >>> sitemap = ImageSitemap("./sample.xml")
+  >>> sitemap.register("http://www.example.com/", "http://www.example.com/img/top-image.jpg")
+  >>> sitemap.save_files()
+  [<sitemap.image_sitemap.ImageSitemapFile object at 0xXXXXXXXXXXXXXXXX>]
+  """
+
   def _db_prepare (self) -> tuple[sqlite3.Connection, sqlite3.Cursor]:
     connection = sqlite3.connect(":memory:")
     cursor = connection.cursor()
@@ -100,6 +149,29 @@ class ImageSitemap (ISitemap, ILoadable, ICloseable):
     self._closeable.close()
 
   def register (self, loc:str, image_loc:str, image_caption:str="", image_geo_location:str="", image_title:str="", image_license:str=""):
+
+    """画像サイトマップに画像の URL を登録します。
+
+    Arguments
+    ---------
+    loc : str
+      登録する画像を参照するページの URL です。
+    image_loc : str
+      登録する画像の URL です。
+    image_caption : str
+      画像の説明文です。
+      未指定ならば空文字列が設定されます。
+    image_geo_location : str
+      画像の位置情報です。
+      未指定ならば空文字列が設定されます。
+    image_title : str
+      画像のタイトルです。
+      未指定ならば空文字列が設定されます。
+    image_license : str
+      画像のライセンス情報です。
+      未指定ならば空文字列が設定されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT id FROM image WHERE loc == ? AND image_loc == ?", (loc, image_loc))
     if self._cursor.fetchone():
@@ -108,14 +180,51 @@ class ImageSitemap (ISitemap, ILoadable, ICloseable):
       self._cursor.execute("INSERT INTO image(loc, image_loc, image_caption, image_geo_location, image_title, image_license) VALUES(?, ?, ?, ?, ?, ?)", (loc, image_loc, image_caption, image_geo_location, image_title, image_license))
 
   def unregister (self, loc:str, image_loc:str):
+
+    """画像サイトマップに登録された画像情報を削除します。
+
+    Notes
+    -----
+    登録済みの URL が指定されたとき、本メソッドは重複するレコードを作成するのではなく、既存のレコードを更新する処理を行います。
+
+    Notes
+    -----
+    削除する画像が存在しない場合であっても、このメソッドは必ず成功します。
+
+    Arguments
+    ---------
+    loc : str
+      削除する画像を参照するページの URL です。
+    image_loc : str
+      削除する画像の URL です。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("DELETE FROM image WHERE loc == ? AND image_loc == ?", (loc, image_loc))
 
   def clear (self):
+
+    """画像サイトマップに登録された全ての画像情報を削除します。"""
+
     self._closeable.must_be_open()
     self._cursor.execute("DELETE FROM image")
 
   def get (self, loc:str) -> URL|None:
+
+    """画像サイトマップに登録された任意のページに関連する全ての画像情報を取得します。
+
+    Arguments
+    ---------
+    loc : str
+      取得するページの URL です。
+
+    Returns
+    -------
+    URL|None
+      情報の取得に成功したならば、それらの情報が設定された `URL` オブジェクトを返します。
+      逆に情報の取得に失敗したならば `None` が返されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT image_loc, image_caption, image_geo_location, image_title, image_license FROM image WHERE loc == ? ORDER BY image_loc ASC", (loc,))
     found_columns = self._cursor.fetchall()
@@ -126,6 +235,16 @@ class ImageSitemap (ISitemap, ILoadable, ICloseable):
       return None
 
   def list_all (self) -> list[URL]:
+
+    """画像サイトマップに登録された全ての画像情報をリストにして返します。
+
+    Returns
+    -------
+    list[URL]
+      画像サイトマップに登録された全ての画像情報のリストです。
+      本リストは整列済みの状態で返されます。
+    """
+
     self._closeable.must_be_open()
     self._cursor.execute("SELECT loc, image_loc, image_caption, image_geo_location, image_title, image_license FROM image ORDER BY loc ASC, image_loc ASC")
     url_images = OrderedDict()
