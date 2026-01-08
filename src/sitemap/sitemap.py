@@ -25,6 +25,9 @@ class ChangeFreq (Enum):
   ALWAYS = "always"
   NEVER = "never"
 
+DEFAULT_PRIORITY:float = 0.5
+DEFAULT_CHANGE_FREQ:ChangeFreq = ChangeFreq.NONE
+
 class URL (NamedTuple):
 
   """サイトマップの <url> の内容を表現します。
@@ -45,8 +48,8 @@ class URL (NamedTuple):
 
   loc:str
   last_mod:datetime.datetime
-  priority:float = 0.5
-  change_freq:ChangeFreq = ChangeFreq.NONE
+  priority:float = DEFAULT_PRIORITY
+  change_freq:ChangeFreq = DEFAULT_CHANGE_FREQ
 
 class SitemapFile (ISitemapFile):
 
@@ -137,7 +140,7 @@ class Sitemap (ISitemap, ILoadable, ICloseable):
   def close (self):
     self._closeable.close()
 
-  def register (self, loc:str, last_mod:datetime.datetime, priority:float=0.5, change_freq:ChangeFreq=ChangeFreq.NONE):
+  def register (self, loc:str, last_mod:datetime.datetime, priority:float=DEFAULT_PRIORITY, change_freq:ChangeFreq=DEFAULT_CHANGE_FREQ):
 
     """サイトマップにページの URL を登録します。
 
@@ -272,12 +275,12 @@ class Sitemap (ISitemap, ILoadable, ICloseable):
       if priority_source:
         priority = float(priority_source)
       else:
-        priority = 0.5
+        priority = DEFAULT_PRIORITY
       change_freq_source = url.get("changefreq")
       if change_freq_source:
         change_freq = ChangeFreq(change_freq_source)
       else:
-        change_freq = ChangeFreq.NONE
+        change_freq = DEFAULT_CHANGE_FREQ
       self.register(loc, last_mod, priority, change_freq)
 
   def loads (self, source:str):
