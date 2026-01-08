@@ -1,7 +1,6 @@
 
 from io import TextIOBase
 from abc import ABC, abstractmethod
-from typing import Generator
 from pathlib import Path
 
 class ISitemapFile (ABC):
@@ -35,7 +34,7 @@ class ISitemap (ABC):
   """サイトマップを表現するための規格を提供します。"""
 
   @abstractmethod
-  def save_files (self, use_indent:bool=False) -> Generator[ISitemapFile, None, None]:
+  def save_files (self, use_indent:bool=False) -> list[ISitemapFile]:
 
     """自身に登録されたサイトマップ情報を保存します。
 
@@ -47,7 +46,7 @@ class ISitemap (ABC):
 
     Returns
     -------
-    Generator[ISitemapFile, None, None]
+    list[ISitemapFile]
       適切に分割され保存処理が行われた `ISitemapFile` の集合です。
     """
 

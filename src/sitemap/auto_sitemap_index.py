@@ -1,6 +1,5 @@
 
 import datetime
-from typing import Generator
 from pathlib import Path
 from dataclasses import dataclass
 from .abc import ISitemap, ISitemapFile
@@ -29,13 +28,16 @@ class AutoSitemapIndex (ISitemap):
   def __post_init__ (self):
     self.file = Path(self.file)
 
-  def save_files (self, use_indent:bool=False) -> Generator[ISitemapFile, None, None]:
+  def save_files (self, use_indent:bool=False) -> list[ISitemapFile]:
     sitemap_index = SitemapIndex(self.file)
+    result = []
     for sitemap in self.sitemaps:
       for sitemap_file in sitemap.save_files(use_indent=use_indent):
         loc = self.host.path_to_url(sitemap_file.file)
         last_mod = datetime.datetime.fromtimestamp(sitemap_file.file.stat().st_mtime)
         sitemap_index.register(loc, last_mod)
-        yield sitemap_file
-    yield from sitemap_index.save_files(use_indent=use_indent)
+        result.append(sitemap_file)
+    saved_files = sitemap_index.save_files(use_indent=use_indent)
+    result.extend(saved_files)
     sitemap_index.close()
+    return result
