@@ -1,7 +1,7 @@
 
 import datetime
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from .abc import ISitemap, ISitemapFile
 from .host import Host
 from .sitemap_index import SitemapIndex
@@ -24,6 +24,7 @@ class AutoSitemapIndex (ISitemap):
   host:Host
   file:Path
   sitemaps:list[ISitemap]
+  sitemap_indexes:list[SitemapIndex] = field(default_factory=list)
 
   def __post_init__ (self):
     self.file = Path(self.file)
@@ -37,6 +38,9 @@ class AutoSitemapIndex (ISitemap):
         last_mod = datetime.datetime.fromtimestamp(sitemap_file.file.stat().st_mtime)
         sitemap_index.register(loc, last_mod)
         result.append(sitemap_file)
+    for sindex in self.sitemap_indexes:
+      for loc, last_mod in sindex.list_all():
+        sitemap_index.register(loc, last_mod)
     saved_files = sitemap_index.save_files(use_indent=use_indent)
     result.extend(saved_files)
     sitemap_index.close()

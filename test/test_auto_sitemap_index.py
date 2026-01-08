@@ -3,7 +3,7 @@ import pytest
 import shutil
 import datetime
 from pathlib import Path
-from sitemap import Sitemap, ImageSitemap, Host, AutoSitemapIndex
+from sitemap import Sitemap, ImageSitemap, SitemapIndex, Host, AutoSitemapIndex
 
 TEST_DIR = Path("./.test")
 
@@ -86,3 +86,30 @@ def test_auto_sitemap_index_with_indent ():
     <lastmod>{today:s}</lastmod>
   </sitemap>
 </sitemapindex>""".format(today=datetime.date.today().isoformat())
+
+def test_auto_sitemap_index3 ():
+
+  #sitemap_indexes 属性を指定した場合の動作確認です。
+
+  host = Host("http", "www.example.com", TEST_DIR)
+  sitemap_index = SitemapIndex(TEST_DIR.joinpath("inner-sitemap-index.xml"))
+  sitemap_index.register("http://www.example.com/sitemap.xml", last_mod=datetime.datetime(2025, 1, 23))
+  sitemap_index.register("http://www.example.com/sitemap2.xml", last_mod=datetime.datetime(2025, 1, 23))
+  auto_sitemap_index = AutoSitemapIndex(host, TEST_DIR.joinpath("sitemap-index.xml"), [], sitemap_indexes=[sitemap_index])
+  assert [sitemap_file.file for sitemap_file in auto_sitemap_index.save_files(use_indent=True)] == [
+    TEST_DIR.joinpath("sitemap-index.xml")
+  ]
+  assert TEST_DIR.joinpath("inner-sitemap-index.xml").exists() == False
+  assert TEST_DIR.joinpath("sitemap-index.xml").exists() == True
+  with open(TEST_DIR.joinpath("sitemap-index.xml"), "r") as file:
+    assert file.read() == """<?xml version='1.0' encoding='utf-8'?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>http://www.example.com/sitemap.xml</loc>
+    <lastmod>2025-01-23</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>http://www.example.com/sitemap2.xml</loc>
+    <lastmod>2025-01-23</lastmod>
+  </sitemap>
+</sitemapindex>"""
