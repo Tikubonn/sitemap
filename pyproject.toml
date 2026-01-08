@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sitemap"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
   "xmlschema>=4.2.0",
   "closeable@git+https://github.com/Tikubonn/closeable.git@v1.0"
